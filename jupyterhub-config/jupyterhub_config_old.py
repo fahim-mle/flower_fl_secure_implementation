@@ -1,44 +1,35 @@
-# jupyterhub-config/jupyterhub_config.py
-
 import os
 
 from oauthenticator.generic import GenericOAuthenticator
 
 # Basic JupyterHub Configuration
 c.JupyterHub.cookie_secret = os.environ["JUPYTERHUB_COOKIE_SECRET"]
-c.JupyterHub.hub_ip = "0.0.0.0"
-c.JupyterHub.bind_url = "http://0.0.0.0:8000/"
+c.JupyterHub.bind_url = "http://localhost:8000/"
+
+# THIS IS THE LINE TO FIX THE CONNECTION
+c.ConfigurableHTTPProxy.ip = "0.0.0.0"
 
 # OAuthenticator Configuration
 c.JupyterHub.authenticator_class = GenericOAuthenticator
-
-# --- Keycloak OAuth URLs ---
-# IMPORTANT: The authorize_url is what the BROWSER uses.
 c.GenericOAuthenticator.authorize_url = (
-    "http://0.0.0.0:8080/realms/fl-realm/protocol/openid-connect/auth"
+    "http://keycloak:8080/realms/fl-realm/protocol/openid-connect/auth"
 )
-
-# IMPORTANT: The callback_url must EXACTLY match Keycloak.
-c.GenericOAuthenticator.oauth_callback_url = "http://0.0.0.0:8000/hub/oauth_callback"
-
-# --- Server-to-Server URLs (can remain as keycloak) ---
 c.GenericOAuthenticator.token_url = (
     "http://keycloak:8080/realms/fl-realm/protocol/openid-connect/token"
 )
 c.GenericOAuthenticator.userdata_url = (
     "http://keycloak:8080/realms/fl-realm/protocol/openid-connect/userinfo"
 )
-
-# --- Keycloak Client Configuration ---
+c.GenericOAuthenticator.oauth_callback_url = "http://localhost:8000/hub/oauth_callback"
 c.GenericOAuthenticator.client_id = "jupyterhub-client"
 c.GenericOAuthenticator.client_secret = ""
-c.GenericOAuthenticator.username_claim = "fl-jupyterhub"
+c.GenericOAuthenticator.username_claim = "preferred_username"
 
-# --- DockerSpawner Configuration ---
+# DockerSpawner Configuration
 c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
 c.DockerSpawner.image = "jupyter/datascience-notebook:latest"
 c.DockerSpawner.remove = True
 c.DockerSpawner.network_name = "flower_fl_secure_implementation_fl-internal-network"
 
-# --- Admin Users ---
+# Admin Users
 c.Authenticator.admin_users = {"admin"}

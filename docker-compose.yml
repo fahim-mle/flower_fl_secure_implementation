@@ -44,6 +44,10 @@ services:
       postgres:
         condition: service_healthy
 
+    # JupyterHub with Keycloak Authentication
+    # JupyterHub with Keycloak Authentication
+    # JupyterHub with Keycloak Authentication
+    # JupyterHub with Keycloak Authentication
   jupyterhub:
     build:
       context: .
@@ -53,8 +57,7 @@ services:
     restart: unless-stopped
     command: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
     environment:
-      # Generate and pass the secret directly as an environment variable
-      - JUPYTERHUB_COOKIE_SECRET=$(openssl rand -hex 32)
+      - JUPYTERHUB_COOKIE_SECRET
     ports:
       - "8000:8000"
     volumes:
