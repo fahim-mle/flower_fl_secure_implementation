@@ -1,19 +1,15 @@
-# === IMPORT THE AUTHENTICATOR CLASS ===
-# This is the modern, correct way to configure the authenticator.
+# jupyterhub-config/jupyterhub_config.py
 
+# === IMPORTS ===
+import os
 from oauthenticator.generic import GenericOAuthenticator
 
-# jupyterhub-config/jupyterhub_config.py
-print("Loading JupyterHub configuration...")
-# jupyterhub-config/jupyterhub_config.py
-
-
 # === Basic JupyterHub Configuration ===
-c.JupyterHub.cookie_secret_file = "/srv/jupyterhub/cookie_secret"
+# Tell JupyterHub to load the cookie secret from the environment variable
+c.JupyterHub.cookie_secret = os.environ["JUPYTERHUB_COOKIE_SECRET"]
 c.JupyterHub.bind_url = "http://localhost:8000/"
 
 # === OAuthenticator Configuration for Keycloak ===
-# Assign the imported class directly, not as a string.
 c.JupyterHub.authenticator_class = GenericOAuthenticator
 
 # --- Keycloak OAuth URLs ---
@@ -43,4 +39,3 @@ c.DockerSpawner.network_name = "flower_fl_secure_implementation_fl-internal-netw
 
 # === Admin Users ===
 c.Authenticator.admin_users = {"admin"}
-print("JupyterHub configuration loaded successfully.")
