@@ -1,0 +1,79 @@
+# docker-compose.yml
+
+services:
+  # PostgreSQL Database for Keycloak
+  postgres:
+    image: postgres:17
+    container_name: fl-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_password
+    volumes:
+      - fl-postgres-data:/var/lib/postgresql/data
+    networks:
+      - fl-internal-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak Authentication Server
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.5
+    container_name: fl-keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - fl-keycloak-data:/opt/keycloak/data
+    networks:
+      - fl-internal-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # JupyterHub with Keycloak Authentication
+
+  jupyterhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jupyterhub-with-oauth
+    container_name: fl-jupyterhub
+    restart: unless-stopped
+    command: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"] # <-- THIS IS THE KEY
+    ports:
+      - "8000:8000"
+    volumes:
+      - fl-jupyterhub-data:/srv/jupyterhub
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - fl-internal-network
+    depends_on:
+      - keycloak
+
+volumes:
+  fl-postgres-data:
+    driver: local
+  fl-keycloak-data:
+    driver: local
+  fl-jupyterhub-data:
+    driver: local
+
+networks:
+  fl-internal-network:
+    driver: bridge
