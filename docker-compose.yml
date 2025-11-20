@@ -23,31 +23,29 @@ services:
     image: quay.io/keycloak/keycloak:26.4.5
     container_name: fl-keycloak
     restart: unless-stopped
-    command: start-dev
+    command: start-dev --import-realm
     environment:
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+      KC_HOSTNAME_PORT: ${KEYCLOAK_PORT:-8180}
       KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak_password
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     ports:
-      - "8080:8080"
+      - "${KEYCLOAK_PORT:-8180}:8080"
     volumes:
       - fl-keycloak-data:/opt/keycloak/data
+      - ./fl-realm-realm.json:/opt/keycloak/data/import/fl-realm-realm.json:ro
     networks:
       - fl-internal-network
+      - fl-public-network
     depends_on:
       postgres:
         condition: service_healthy
 
-    # JupyterHub with Keycloak Authentication
-    # JupyterHub with Keycloak Authentication
-    # JupyterHub with Keycloak Authentication
-    # JupyterHub with Keycloak Authentication
   jupyterhub:
     build:
       context: .
@@ -56,23 +54,44 @@ services:
     container_name: fl-jupyterhub
     restart: unless-stopped
     command: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
+    env_file:
+      - .env
     environment:
-      - JUPYTERHUB_COOKIE_SECRET
+      # defaults in .env; these can be overridden there
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+      DOCKER_JUPYTER_IMAGE: ${DOCKER_JUPYTER_IMAGE:-jupyter/datascience-notebook:latest}
+      DOCKER_NETWORK_NAME: fl-internal-network
     ports:
-      - "8000:8000"
+      - "${PUBLIC_PORT:-8100}:8000" # proxy public port
+      - "${HUB_API_PORT:-8101}:8001" # proxy API port (optional)
     volumes:
       - fl-jupyterhub-data:/srv/jupyterhub
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./jupyterhub-config/jupyterhub_config.py:/etc/jupyterhub/jupyterhub_config.py:ro
     networks:
       - fl-internal-network
+      - fl-public-network
     depends_on:
       - keycloak
 
+# volumes you asked for (explicit)
 volumes:
   fl-postgres-data:
   fl-keycloak-data:
   fl-jupyterhub-data:
+  fl-grafana-data:
+  fl-prometheus-data:
+  fl-superlink-config:
+  fl-supernode-config:
 
+# networks you requested
 networks:
   fl-internal-network:
+    name: fl-internal-network
+    driver: bridge
+  fl-public-network:
+    name: fl-public-network
+    driver: bridge
+  fl-vpn-network:
+    name: fl-vpn-network
     driver: bridge

@@ -1,0 +1,45 @@
+{
+  "id": "fl-realm",
+  "realm": "fl-realm",
+  "enabled": true,
+  "sslRequired": "NONE",
+  "registrationAllowed": true,
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "jupyterhub-client",
+      "name": "jupyterhub-client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "BWNNj6Avo5UcAxBAXVs4ATSraktBKSUu",
+      "redirectUris": ["http://localhost:8100/hub/oauth_callback"],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "bearerOnly": false
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin"
+      }
+    ]
+  }
+}
