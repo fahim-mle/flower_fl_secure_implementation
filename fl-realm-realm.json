@@ -26,7 +26,9 @@
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "BWNNj6Avo5UcAxBAXVs4ATSraktBKSUu",
-      "redirectUris": ["http://localhost:8100/hub/oauth_callback"],
+      "redirectUris": [
+        "http://localhost:8100/*"
+      ],
       "protocol": "openid-connect",
       "publicClient": false,
       "standardFlowEnabled": true,
