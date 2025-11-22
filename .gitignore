@@ -1,1 +1,108 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Certificate and key files (security sensitive)
+*.key
+*.crt
+*.pem
+*.p12
+certificates/ca/ca.key
+certificates/ca/ca.srl
+certificates/*/*.key
+certificates/*/*.pem
+
+# Log files
+*.log
+logs/
+supernodes/*/logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Data files (should be gitignored)
+supernodes/*/data/
+data/
+datasets/
+
+# Configuration files with sensitive data
+nginx/ssl/
+*.cfg.bak
+*.json.bak
+
+# Runtime files
+*.pid
+*.sock
+
+# Cache directories
+.cache/
+.cache.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# Operations manual (existing)
 /operations_manual
