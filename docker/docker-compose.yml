@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  reverse-proxy:
+    image: nginx:latest
+    container_name: reverse-proxy
+    networks:
+      - fl_reverse_proxy_net
+      - fl_auth_net
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/ssl:/etc/nginx/ssl:ro
+      - ../nginx/oidc:/etc/nginx/oidc:ro
+    depends_on:
+      - superlink
+    # TODO: add ports 80/443 bindings and auth provider integration
+
+  superlink:
+    build:
+      context: ./superlink
+      dockerfile: Dockerfile
+    container_name: superlink
+    networks:
+      - fl_internal_net
+    volumes:
+      - superlink_certs:/etc/flwr/certs
+      - ../certificates/superlink:/host_certs:ro
+      - ./superlink/config:/app/config:ro
+    depends_on:
+      - supernode-1
+      - supernode-2
+
+  supernode-1:
+    build:
+      context: ./supernode
+      dockerfile: Dockerfile
+    container_name: supernode-1
+    networks:
+      - fl_internal_net
+    volumes:
+      - supernode1_data:/data
+      - supernode1_certs:/etc/flwr/certs
+      - ../certificates/supernodes/sn1:/host_certs:ro
+      - ./supernode/config:/app/config:ro
+
+  supernode-2:
+    build:
+      context: ./supernode
+      dockerfile: Dockerfile
+    container_name: supernode-2
+    networks:
+      - fl_internal_net
+    volumes:
+      - supernode2_data:/data
+      - supernode2_certs:/etc/flwr/certs
+      - ../certificates/supernodes/sn2:/host_certs:ro
+      - ./supernode/config:/app/config:ro
+
+  auth-provider:
+    image: keycloak:latest
+    container_name: auth-provider
+    networks:
+      - fl_auth_net
+    # TODO: swap image/config based on selected provider
+
+networks:
+  fl_internal_net:
+  fl_reverse_proxy_net:
+  fl_auth_net:
+
+volumes:
+  fl_ca_certs:
+  superlink_certs:
+  supernode1_data:
+  supernode1_certs:
+  supernode2_data:
+  supernode2_certs:
