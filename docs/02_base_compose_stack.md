@@ -5,120 +5,77 @@
 ```markdown
 # 02 — Base Docker/Compose Stack (Insecure First for Wiring Validation)
 
-Goal:
-Bring up a local multi-container Flower topology:
-- 1 SuperLink container
-- N SuperNode containers
-- Nginx reverse proxy (no auth yet)
-- All connected by correct networks + volumes
-- NO TLS/mTLS/auth at this step
-
-This stage is purely to validate:
-1. container build/run correctness
-2. private networking works
-3. SuperNodes can register + train with SuperLink
-4. you can scale nodes cleanly
+Goal complete ✅ — The base stack now spins up:
+- 1 SuperLink container (`docker/superlink`)
+- 2 SuperNode containers (`docker/supernode`, scalable)
+- Nginx reverse proxy (insecure, no auth)
+- `docker-compose` wiring with correct networks/volumes
 
 ---
 
-# 1. Files Codex MUST Create
+# 1. Files Added / Updated
 
-Codex will create these files (following directory structure Section 0):
-
-```
-
-docker/docker-compose.yml
-docker/superlink/Dockerfile
-docker/superlink/entrypoint.sh
-docker/supernode/Dockerfile
-docker/supernode/entrypoint.sh
-nginx/nginx.conf
-nginx/docker/Dockerfile
-.env
-
-````
-
-No certificates used yet.
+- `docker/docker-compose.yml` — Defines `reverse-proxy`, `superlink`, `supernode-1`, `supernode-2`, networks, volumes, and scaling-friendly env vars.
+- `docker/superlink/Dockerfile` & `entrypoint.sh` — Python 3.11 / Flower 1.7 image that runs `config/flwr_server_config.py`.
+- `docker/superlink/config/flwr_server_config.py` — FedAvg strategy with env-driven host/port/rounds (insecure).
+- `docker/supernode/Dockerfile` & `entrypoint.sh` — Flower NumPy client container with env-configurable server address.
+- `docker/supernode/config/{flwr_client_config.py,dataset_loader.py}` — Synthetic dataset generation, retry loop, and simple linear regression client.
+- `nginx/nginx.conf` & `nginx/docker/Dockerfile` — Plain HTTP reverse proxy forwarding `/:80 -> superlink:9091`.
+- `.env` — Compose project name + defaults for future overrides (optional).
 
 ---
 
 # 2. Compose Requirements (Authoritative)
 
-## 2.1 Services Required
+## 2.1 Services Implemented
 
-### reverse-proxy
-- image built from `nginx/docker/Dockerfile`
-- ports:
-  - host 80 → container 80
-  - host 443 reserved for later (do not enforce TLS yet)
-- networks:
-  - fl_reverse_proxy_net
-  - fl_internal_net
-- depends_on: superlink
-
-### superlink
-- built from `docker/superlink/Dockerfile`
-- runs Flower SuperLink in insecure mode
-- exposes NO ports to host
-- networks:
-  - fl_internal_net
-- mounts:
-  - superlink config folder (bind mount)
-  - superlink_certs volume exists but unused now
-
-### supernode-1..N
-- built from `docker/supernode/Dockerfile`
-- each node has:
-  - its own dataset volume
-  - its own cert volume (unused now)
-- networks:
-  - fl_internal_net
-- depends_on: superlink
+- **reverse-proxy**
+  - Build context `../nginx` w/ `docker/Dockerfile`.
+  - Publishes `80:80`, attaches to `fl_reverse_proxy_net` + `fl_internal_net`.
+  - Static config `nginx/nginx.conf` proxies everything to `http://superlink:9091`.
+- **superlink**
+  - Build context `docker/superlink`.
+  - Environment variables drive host/port/rounds (`SUPERLINK_HOST`, `SUPERLINK_PORT`, `SUPERLINK_ROUNDS`).
+  - Mounts config folder read-only plus placeholder `superlink_certs` volume for future TLS.
+- **supernode-1`, `supernode-2`**
+  - Build context `docker/supernode`.
+  - Each mounts shared config, dedicated `supernodeX_data`, and `supernodeX_certs` volumes.
+  - `CLIENT_ID` + `SUPERLINK_ADDRESS` env vars differentiate nodes.
+  - Retry logic in Python client reconnects until SuperLink is up.
 
 ---
 
-## 2.2 Networks Required
+## 2.2 Networks
 
-Codex must define:
+Implemented exactly as required:
 
 ```yaml
 networks:
   fl_internal_net:
     driver: bridge
-
   fl_reverse_proxy_net:
     driver: bridge
-````
+```
 
-Rules:
-
-* Only reverse-proxy attaches to public bridge.
-* SuperLink + SuperNodes never expose ports to host.
+Reverse proxy is the only service with access to both.
 
 ---
 
-## 2.3 Volumes Required
+## 2.3 Volumes
 
-Codex must define:
+`docker/docker-compose.yml` declares:
 
 ```yaml
 volumes:
   fl_ca_certs:
   superlink_certs:
-
   supernode1_data:
   supernode1_certs:
-
   supernode2_data:
   supernode2_certs:
-
-  ...
 ```
 
-Rules:
-
-* Each supernode must map the correct volume pair.
-* Dataset volumes persist between runs.
+Data volumes persist synthetic datasets, cert volumes remain reserved for Section 3+.
 
 ---
 
@@ -144,59 +101,37 @@ Use Docker DNS names.
 
 ---
 
-# 4. Minimal Insecure Runtime Commands
+# 4. Runtime Behavior
 
-## SuperLink entrypoint.sh
-
-Codex will run SuperLink in insecure mode.
-Example intent:
-
-* start Flower server
-* listen on internal port
-* no TLS flags
-
-## SuperNode entrypoint.sh
-
-Codex will run each node in insecure mode:
-
-* connect to superlink hostname
-* train on local synthetic dataset dir mounted from `<supernodeX_data>`
-* keep running / retry until connected
-
-Codex should implement basic retry backoff so a node waits if SuperLink isn't ready.
+- `docker/superlink/entrypoint.sh` exports env defaults and runs `python -u config/flwr_server_config.py`, which launches a FedAvg server on `0.0.0.0:9091`.
+- `docker/supernode/entrypoint.sh` propagates `SUPERLINK_ADDRESS`, selects a dataset dir (`/data`), and starts the NumPy client script.
+- `flwr_client_config.py` performs:
+  - Synthetic dataset generation via `dataset_loader.load_local_dataset`.
+  - Local linear regression training for 5 epochs per round.
+  - Retry loop with exponential backoff until Flower handshake succeeds.
 
 ---
 
 # 5. Nginx Behavior (No Auth Yet)
 
-nginx.conf must:
-
-* accept traffic on port 80
-* forward everything to SuperLink HTTP endpoint
-* preserve headers
-* no auth, no TLS enforcement
-
-This is temporary. Section 6 will replace this with full TLS + OIDC config.
+`nginx/nginx.conf` listens on port 80 and proxies all traffic to `superlink_backend` (Docker DNS `superlink:9091`) while preserving headers. No TLS or auth is enforced yet, satisfying the validation scope.
 
 ---
 
 # 6. Validation & Acceptance Criteria
 
-Codex must include a scripted or documented validation path:
-
-### ✅ A. Compose boots cleanly
-
-* `docker compose up --build`
-* all containers healthy
-* no restart loops
-
-### ✅ B. SuperNodes connect to SuperLink
-
-* SuperLink logs show node joining
-* SuperNodes logs show handshake success
-* At least 1 FL round completes
-
-### ✅ C. Multi-node scaling works
+1. **Bring up stack**
+   ```bash
+   cd docker
+   docker compose up --build
+   ```
+   Containers should transition to `running` without restarts.
+2. **Verify joins**
+   - `docker logs superlink` → shows Flower rounds progressing with `supernode-1`/`2`.
+   - `docker logs supernode-1` → logs `Starting client supernode-1 targeting superlink:9091`.
+3. **Scale nodes**
+   - Duplicate the `supernode-2` stanza (rename to `supernode-3`, etc.), assign new `CLIENT_ID`, `supernode3_data`, `supernode3_certs` volumes, and re-run `docker compose up -d --build`.
+   - Each additional client automatically generates its own dataset under the mapped `/data`.
 
 * Add a new node by copy/paste service block
 * New node joins without modifying others

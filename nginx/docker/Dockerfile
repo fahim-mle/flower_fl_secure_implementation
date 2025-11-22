@@ -1,3 +1,4 @@
-# Placeholder Dockerfile for Nginx reverse proxy with OIDC modules.
-FROM nginx:latest
-# Copy nginx.conf and OIDC configs at build time as needed.
+# Simple Nginx image acting as reverse proxy to the SuperLink service.
+FROM nginx:1.25-alpine
+
+COPY nginx.conf /etc/nginx/nginx.conf
